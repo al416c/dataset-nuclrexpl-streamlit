@@ -163,7 +163,7 @@ st.markdown("""
 
 st.markdown("""
 <div class="hero-container">
-    <div class="hero-title">☢️ Explosions Nucléaires dans le Monde</div>
+    <div class="hero-title">☢️ Explosions nucléaires dans le monde</div>
     <div class="hero-subtitle">Analyse interactive de tous les essais nucléaires documentés · 1945 — 1998</div>
 </div>
 """, unsafe_allow_html=True)
