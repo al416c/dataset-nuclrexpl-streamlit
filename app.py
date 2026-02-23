@@ -1,11 +1,58 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Exploration des explosions nucléaires", layout="wide")
+st.set_page_config(
+    page_title="☢️ Explosions Nucléaires",
+    page_icon="☢️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-st.title("Exploration des explosions nucléaires dans le monde")
+st.markdown("""
+<style>
+    .block-container { padding-top: 1rem; }
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
+        border: 1px solid #3d3d5c;
+        border-radius: 12px;
+        padding: 15px 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    [data-testid="stMetricLabel"] { color: #a0a0c0; }
+    [data-testid="stMetricValue"] { color: #ffffff; font-size: 1.8rem; }
+    .stDataFrame { border-radius: 10px; overflow: hidden; }
+    h1, h2, h3 { color: #e0e0ff; }
+    .stSidebar [data-testid="stSidebarContent"] {
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("☢️ Exploration des Explosions Nucléaires dans le Monde")
+
+with st.expander("ℹ️ Note : Essais nucléaires non confirmés"):
+    st.markdown("""
+    **Israël** n'apparaît pas dans ce dataset car aucun essai nucléaire israélien
+    n'est officiellement confirmé. Cependant, plusieurs événements sont suspectés :
+
+    - **1963** — Test souterrain possible dans le désert du Néguev
+      (rapporté par *Wehrtechnik*, magazine militaire ouest-allemand)
+    - **1966** — Test d'implosion possible à rendement nul dans le Néguev
+    - **1979** — **Incident Vela** : double flash détecté par un satellite américain
+      dans l'océan Indien sud. Un consensus scientifique et historique considère
+      qu'il s'agissait d'un test nucléaire israélien
+      (Avner Cohen, Middlebury Institute).
+
+    Israël maintient une politique officielle d'**ambiguïté nucléaire**
+    et n'a jamais confirmé ni infirmé posséder l'arme nucléaire.
+    (Malgré les différentes sources et preuves attestant le contraire)
+
+    *Sources : Lt. Col. Warner D. Farr (USAF), The New York Times,
+    Theodore Taylor, Avner Cohen.*
+    """)
 
 @st.cache_data
 def load_data():
@@ -14,19 +61,23 @@ def load_data():
 df = load_data()
 
 df = df.assign(Yield_Average=(df['Data.Yeild.Lower'] + df['Data.Yeild.Upper']) / 2)
-df['Decade'] = df['Date.Year'].apply(lambda x: (x // 10) * 10)
+df['Decade'] = df['Date.Year'].apply(lambda x: f"{(x // 10) * 10}s")
 df['Yield_Category'] = df['Yield_Average'].map(
-    lambda x: 'Faible' if x < 20 else ('Moyen' if x < 1000 else 'Élevé')
+    lambda x: '🟢 Faible (<20 kt)' if x < 20 else ('🟡 Moyen (20-1000 kt)' if x < 1000 else '🔴 Élevé (>1000 kt)')
 )
 
-st.sidebar.header("🎛️ Filtres Interactifs")
+st.sidebar.markdown("## 🎛️ Filtres")
+
 countries = sorted(df['WEAPON SOURCE COUNTRY'].unique())
-selected_country = st.sidebar.multiselect("Pays source", countries, default=countries)
+selected_country = st.sidebar.multiselect("🌍 Pays source", countries, default=countries)
+
 min_year, max_year = int(df['Date.Year'].min()), int(df['Date.Year'].max())
-selected_years = st.sidebar.slider("Période", min_year, max_year, (min_year, max_year))
+selected_years = st.sidebar.slider("📅 Période", min_year, max_year, (min_year, max_year))
 
 yield_categories = df['Yield_Category'].unique().tolist()
-selected_yield = st.sidebar.multiselect("Catégorie de puissance", yield_categories, default=yield_categories)
+selected_yield = st.sidebar.multiselect("💥 Catégorie de puissance", yield_categories, default=yield_categories)
+
+st.sidebar.markdown("📦 Source : [Kaggle](https://www.kaggle.com/datasets/)")
 
 df_filtered = df[
     (df['WEAPON SOURCE COUNTRY'].isin(selected_country)) &
@@ -35,9 +86,22 @@ df_filtered = df[
     (df['Yield_Category'].isin(selected_yield))
 ]
 
+st.markdown("### 📊 Indicateurs clés")
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+with kpi1:
+    st.metric("Total essais", f"{len(df_filtered):,}")
+with kpi2:
+    st.metric("Pays impliqués", f"{df_filtered['WEAPON SOURCE COUNTRY'].nunique()}")
+with kpi3:
+    avg_yield = df_filtered['Yield_Average'].mean()
+    st.metric("Puissance moyenne", f"{avg_yield:,.1f} kt" if not pd.isna(avg_yield) else "N/A")
+with kpi4:
+    max_yield = df_filtered['Yield_Average'].max()
+    st.metric("Essai le plus puissant", f"{max_yield:,.0f} kt" if not pd.isna(max_yield) else "N/A")
+
 st.subheader("📋 Aperçu du Dataset")
 st.markdown(f"**{len(df_filtered)}** essais affichés sur **{len(df)}** au total.")
-st.dataframe(df_filtered.head(50), use_container_width=True)
+st.dataframe(df_filtered.head(50), use_container_width=True, height=300)
 
 st.subheader("📈 Statistiques par pays")
 stats = (
@@ -46,94 +110,106 @@ stats = (
     .agg(['sum', 'mean', 'std', 'count'])
     .reset_index()
 )
-stats.columns = ['Pays', 'Total Yield', 'Moyenne', 'Écart-type', "Nombre d'essais"]
+stats.columns = ['Pays', 'Total Yield (kt)', 'Moyenne (kt)', 'Écart-type (kt)', "Nombre d'essais"]
 stats = stats.sort_values("Nombre d'essais", ascending=False)
-st.dataframe(stats.style.format({
-    'Total Yield': '{:,.1f}',
-    'Moyenne': '{:,.2f}',
-    'Écart-type': '{:,.2f}',
-}), use_container_width=True)
+st.dataframe(
+    stats.style.format({
+        'Total Yield (kt)': '{:,.1f}',
+        'Moyenne (kt)': '{:,.2f}',
+        'Écart-type (kt)': '{:,.2f}',
+    }).background_gradient(cmap='YlOrRd', subset=["Nombre d'essais"]),
+    use_container_width=True,
+)
 
-st.subheader("🔢 Nombre d'essais par pays (value_counts)")
+st.subheader("🔢 Répartition par pays (value_counts)")
 vc = df_filtered['WEAPON SOURCE COUNTRY'].value_counts().reset_index()
 vc.columns = ['Pays', "Nombre d'essais"]
 st.dataframe(vc, use_container_width=True)
+
 st.subheader("📊 Visualisations")
 
-col_viz1, col_viz2 = st.columns(2)
+col1, col2 = st.columns(2)
 
-with col_viz1:
-    st.markdown("**1. Évolution chronologique (Courbe)**")
-    fig1, ax1 = plt.subplots(figsize=(8, 4))
-    tests_per_year = df_filtered.groupby('Date.Year').size()
-    ax1.plot(tests_per_year.index, tests_per_year.values, color='#1f77b4', marker='o', markersize=4, linewidth=2)
-    ax1.set_xlabel("Année", fontsize=11)
-    ax1.set_ylabel("Nombre d'essais", fontsize=11)
-    ax1.set_title("Essais nucléaires par année", fontsize=13, fontweight='bold')
-    ax1.grid(True, alpha=0.3)
-    fig1.tight_layout()
-    st.pyplot(fig1)
-
-with col_viz2:
-    st.markdown("**2. Distribution par décennie (Histogramme)**")
-    fig2, ax2 = plt.subplots(figsize=(8, 4))
-    decade_counts = df_filtered.groupby('Decade').size().reset_index(name='count')
-    ax2.bar(
-        decade_counts['Decade'].astype(str),
-        decade_counts['count'],
-        color='#ff7f0e',
-        edgecolor='white',
-        linewidth=0.8,
+with col1:
+    st.markdown("#### 📈 Évolution chronologique")
+    tests_per_year = df_filtered.groupby('Date.Year').size().reset_index(name='Essais')
+    fig1 = px.line(
+        tests_per_year, x='Date.Year', y='Essais',
+        markers=True, color_discrete_sequence=['#00d4ff'],
     )
-    ax2.set_xlabel("Décennie", fontsize=11)
-    ax2.set_ylabel("Nombre d'essais", fontsize=11)
-    ax2.set_title("Essais par décennie", fontsize=13, fontweight='bold')
-    ax2.grid(True, axis='y', alpha=0.3)
-    fig2.tight_layout()
-    st.pyplot(fig2)
+    fig1.update_layout(
+        template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)', xaxis_title="Année",
+        yaxis_title="Nombre d'essais", font=dict(size=12),
+        height=400, margin=dict(l=40, r=20, t=30, b=40),
+    )
+    fig1.update_traces(line=dict(width=2.5), marker=dict(size=5))
+    st.plotly_chart(fig1, use_container_width=True)
 
-st.markdown("**3. Répartition globale par pays (Diagramme circulaire)**")
-country_counts = df_filtered['WEAPON SOURCE COUNTRY'].value_counts()
+with col2:
+    st.markdown("#### 📊 Distribution par décennie")
+    decade_counts = df_filtered.groupby('Decade').size().reset_index(name='Essais')
+    decade_counts = decade_counts.sort_values('Decade')
+    fig2 = px.bar(
+        decade_counts, x='Decade', y='Essais',
+        color='Essais', color_continuous_scale='Oranges',
+    )
+    fig2.update_layout(
+        template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)', xaxis_title="Décennie",
+        yaxis_title="Nombre d'essais", font=dict(size=12),
+        height=400, margin=dict(l=40, r=20, t=30, b=40),
+        coloraxis_showscale=False,
+    )
+    st.plotly_chart(fig2, use_container_width=True)
 
-threshold = 0.02
-total = country_counts.sum()
-main = country_counts[country_counts / total >= threshold].copy()
-others = country_counts[country_counts / total < threshold]
-if len(others) > 0:
-    main['Autres'] = others.sum()
+st.markdown("#### 🥧 Répartition des essais par pays")
+country_counts = df_filtered['WEAPON SOURCE COUNTRY'].value_counts().reset_index()
+country_counts.columns = ['Pays', 'Essais']
 
-colors = plt.cm.Set2(range(len(main)))
+total = country_counts['Essais'].sum()
+country_counts['Pct'] = country_counts['Essais'] / total
+main_data = country_counts[country_counts['Pct'] >= 0.02].copy()
+others_sum = country_counts[country_counts['Pct'] < 0.02]['Essais'].sum()
+if others_sum > 0:
+    others_row = pd.DataFrame([{'Pays': 'Autres', 'Essais': others_sum, 'Pct': others_sum / total}])
+    main_data = pd.concat([main_data, others_row], ignore_index=True)
 
-fig3, ax3 = plt.subplots(figsize=(7, 5))
-wedges, texts, autotexts = ax3.pie(
-    main,
-    autopct='%1.1f%%',
-    startangle=90,
-    colors=colors,
-    pctdistance=0.80,
-    wedgeprops=dict(edgecolor='white', linewidth=2),
-)
+col_pie, col_bar = st.columns(2)
 
-for autotext in autotexts:
-    autotext.set_fontsize(9)
-    autotext.set_fontweight('bold')
+with col_pie:
+    fig3 = px.pie(
+        main_data, values='Essais', names='Pays',
+        color_discrete_sequence=px.colors.qualitative.Set2, hole=0.35,
+    )
+    fig3.update_traces(
+        textposition='outside', textinfo='label+percent',
+        textfont_size=12, pull=[0.03] * len(main_data),
+        marker=dict(line=dict(color='#1a1a2e', width=2)),
+    )
+    fig3.update_layout(
+        template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=12), height=450,
+        margin=dict(l=20, r=20, t=30, b=20),
+        showlegend=True, legend=dict(font=dict(size=11)),
+    )
+    st.plotly_chart(fig3, use_container_width=True)
 
-for text in texts:
-    text.set_text('')
-
-ax3.legend(
-    wedges,
-    main.index,
-    title="Pays",
-    loc="center left",
-    bbox_to_anchor=(1, 0, 0.5, 1),
-    fontsize=10,
-    title_fontsize=11,
-)
-ax3.set_title("Répartition des essais par pays", fontsize=13, fontweight='bold', pad=20)
-ax3.axis('equal')
-fig3.tight_layout()
-st.pyplot(fig3)
+with col_bar:
+    st.markdown("#### 🏆 Classement par nombre d'essais")
+    sorted_data = main_data.sort_values('Essais', ascending=True)
+    fig4 = px.bar(
+        sorted_data, x='Essais', y='Pays', orientation='h',
+        color='Essais', color_continuous_scale='Tealgrn', text='Essais',
+    )
+    fig4.update_traces(textposition='outside', textfont_size=12)
+    fig4.update_layout(
+        template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)', xaxis_title="Nombre d'essais",
+        yaxis_title="", font=dict(size=12), height=450,
+        margin=dict(l=20, r=40, t=30, b=40), coloraxis_showscale=False,
+    )
+    st.plotly_chart(fig4, use_container_width=True)
 
 lat_col = None
 lon_col = None
@@ -146,27 +222,43 @@ for c in df_filtered.columns:
 
 if lat_col and lon_col:
     st.subheader("🗺️ Carte des sites d'essais nucléaires")
-    map_data = df_filtered[[lat_col, lon_col, 'WEAPON SOURCE COUNTRY']].dropna()
-    map_data = map_data.rename(columns={lat_col: 'latitude', lon_col: 'longitude'})
-    st.map(map_data, size=20)
+    map_data = df_filtered[[lat_col, lon_col, 'WEAPON SOURCE COUNTRY', 'Date.Year', 'Yield_Average']].dropna()
+    map_data = map_data.rename(columns={lat_col: 'lat', lon_col: 'lon'})
+    fig_map = px.scatter_mapbox(
+        map_data, lat='lat', lon='lon', color='WEAPON SOURCE COUNTRY',
+        size='Yield_Average', size_max=15,
+        hover_data=['Date.Year', 'Yield_Average'],
+        color_discrete_sequence=px.colors.qualitative.Set2, zoom=1, height=500,
+    )
+    fig_map.update_layout(
+        mapbox_style='carto-darkmatter',
+        margin=dict(l=0, r=0, t=0, b=0),
+        legend=dict(title="Pays", font=dict(size=11), bgcolor='rgba(0,0,0,0.5)'),
+    )
+    st.plotly_chart(fig_map, use_container_width=True)
 
 if 'Location.Name' in df_filtered.columns:
     st.subheader("📍 Top 10 des sites d'essais")
-    top_sites = df_filtered['Location.Name'].value_counts().head(10)
-    fig4, ax4 = plt.subplots(figsize=(10, 5))
-    bars = ax4.barh(top_sites.index[::-1], top_sites.values[::-1], color='#2ca02c', edgecolor='white')
-    ax4.set_xlabel("Nombre d'essais", fontsize=11)
-    ax4.set_title("Top 10 des sites d'essais nucléaires", fontsize=13, fontweight='bold')
-    ax4.grid(True, axis='x', alpha=0.3)
-    for bar in bars:
-        width = bar.get_width()
-        ax4.text(width + 1, bar.get_y() + bar.get_height() / 2, f'{int(width)}',
-                 ha='left', va='center', fontsize=9, fontweight='bold')
-    fig4.tight_layout()
-    st.pyplot(fig4)
+    top_sites = df_filtered['Location.Name'].value_counts().head(10).reset_index()
+    top_sites.columns = ['Site', 'Essais']
+    top_sites = top_sites.sort_values('Essais', ascending=True)
+    fig5 = px.bar(
+        top_sites, x='Essais', y='Site', orientation='h',
+        color='Essais', color_continuous_scale='Purples', text='Essais',
+    )
+    fig5.update_traces(textposition='outside', textfont_size=12)
+    fig5.update_layout(
+        template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)', xaxis_title="Nombre d'essais",
+        yaxis_title="", font=dict(size=12), height=400,
+        margin=dict(l=20, r=40, t=30, b=40), coloraxis_showscale=False,
+    )
+    st.plotly_chart(fig5, use_container_width=True)
 
-st.markdown("---")
 st.markdown(
-    "📦 Source : [Kaggle - Nuclear Explosions](https://www.kaggle.com/datasets/) "
-    "| Réalisé avec **Streamlit**, **Pandas**, **Matplotlib** & **Seaborn**"
+    "<div style='text-align: center; color: #666; padding: 20px;'>"
+    "📦 Source : <a href='https://www.kaggle.com/datasets/' style='color: #00d4ff;'>Kaggle - Nuclear Explosions</a> "
+    "| Réalisé avec <b>Streamlit</b>, <b>Pandas</b>, <b>Plotly</b>"
+    "</div>",
+    unsafe_allow_html=True,
 )
