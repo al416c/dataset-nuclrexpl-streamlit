@@ -60,6 +60,19 @@ def load_data():
 
 df = load_data()
 
+# Traduction des noms de pays
+country_translation = {
+    'USSR': 'URSS',
+    'USA': 'États-Unis',
+    'FRANCE': 'France',
+    'CHINA': 'Chine',
+    'INDIA': 'Inde',
+    'PAKISTAN': 'Pakistan',
+    'UK': 'UK',
+    'NORTH KOREA': 'Corée du Nord',
+}
+df['WEAPON SOURCE COUNTRY'] = df['WEAPON SOURCE COUNTRY'].replace(country_translation)
+
 df = df.assign(Yield_Average=(df['Data.Yeild.Lower'] + df['Data.Yeild.Upper']) / 2)
 df['Decade'] = df['Date.Year'].apply(lambda x: f"{(x // 10) * 10}s")
 df['Yield_Category'] = df['Yield_Average'].map(
@@ -99,7 +112,7 @@ with kpi4:
     max_yield = df_filtered['Yield_Average'].max()
     st.metric("Essai le plus puissant", f"{max_yield:,.0f} kt" if not pd.isna(max_yield) else "N/A")
 
-st.subheader("📋 Aperçu du Dataset")
+st.subheader("📋 Aperçu du jeu de données")
 st.markdown(f"**{len(df_filtered)}** essais affichés sur **{len(df)}** au total.")
 st.dataframe(df_filtered.head(50), use_container_width=True, height=300)
 
@@ -110,11 +123,11 @@ stats = (
     .agg(['sum', 'mean', 'std', 'count'])
     .reset_index()
 )
-stats.columns = ['Pays', 'Total Yield (kt)', 'Moyenne (kt)', 'Écart-type (kt)', "Nombre d'essais"]
+stats.columns = ['Pays', 'Puissance totale (kt)', 'Moyenne (kt)', 'Écart-type (kt)', "Nombre d'essais"]
 stats = stats.sort_values("Nombre d'essais", ascending=False)
 st.dataframe(
     stats.style.format({
-        'Total Yield (kt)': '{:,.1f}',
+        'Puissance totale (kt)': '{:,.1f}',
         'Moyenne (kt)': '{:,.2f}',
         'Écart-type (kt)': '{:,.2f}',
     }).background_gradient(cmap='YlOrRd', subset=["Nombre d'essais"]),
@@ -225,15 +238,23 @@ if lat_col and lon_col:
     map_data = df_filtered[[lat_col, lon_col, 'WEAPON SOURCE COUNTRY', 'Date.Year', 'Yield_Average']].dropna()
     map_data = map_data.rename(columns={lat_col: 'lat', lon_col: 'lon'})
     fig_map = px.scatter_mapbox(
-        map_data, lat='lat', lon='lon', color='WEAPON SOURCE COUNTRY',
-        size='Yield_Average', size_max=15,
-        hover_data=['Date.Year', 'Yield_Average'],
-        color_discrete_sequence=px.colors.qualitative.Set2, zoom=1, height=500,
+        map_data, lat='lat', lon='lon',
+        color='WEAPON SOURCE COUNTRY',
+        hover_data={'Date.Year': True, 'Yield_Average': ':.1f', 'lat': False, 'lon': False},
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        zoom=1, height=600, opacity=0.7,
     )
+    fig_map.update_traces(marker=dict(size=6))
     fig_map.update_layout(
         mapbox_style='carto-darkmatter',
         margin=dict(l=0, r=0, t=0, b=0),
-        legend=dict(title="Pays", font=dict(size=11), bgcolor='rgba(0,0,0,0.5)'),
+        legend=dict(
+            title="Pays",
+            font=dict(size=12),
+            bgcolor='rgba(0,0,0,0.5)',
+            yanchor="top", y=0.99,
+            xanchor="left", x=0.01,
+        ),
     )
     st.plotly_chart(fig_map, use_container_width=True)
 
@@ -257,7 +278,7 @@ if 'Location.Name' in df_filtered.columns:
 
 st.markdown(
     "<div style='text-align: center; color: #666; padding: 20px;'>"
-    "📦 Source : <a href='https://www.kaggle.com/datasets/' style='color: #00d4ff;'>Kaggle - Nuclear Explosions</a> "
+    "📦 Source : <a href='https://www.kaggle.com/datasets/' style='color: #00d4ff;'>Kaggle - Explosions Nucléaires</a> "
     "| Réalisé avec <b>Streamlit</b>, <b>Pandas</b>, <b>Plotly</b>"
     "</div>",
     unsafe_allow_html=True,
