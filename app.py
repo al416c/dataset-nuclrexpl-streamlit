@@ -10,7 +10,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- CSS avancé ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -24,7 +23,6 @@ st.markdown("""
         padding-bottom: 1rem;
     }
 
-    /* Header hero */
     .hero-container {
         background: linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 40%, #2d1b4e 70%, #1a0a2e 100%);
         border: 1px solid rgba(139, 92, 246, 0.3);
@@ -70,7 +68,6 @@ st.markdown("""
         z-index: 1;
     }
 
-    /* KPI Cards */
     [data-testid="stMetric"] {
         background: linear-gradient(135deg, #12121f 0%, #1e1e35 100%);
         border: 1px solid rgba(139, 92, 246, 0.2);
@@ -98,7 +95,6 @@ st.markdown("""
         font-weight: 600;
     }
 
-    /* Section headers */
     .section-header {
         font-family: 'Outfit', sans-serif;
         font-size: 1.5rem;
@@ -111,14 +107,12 @@ st.markdown("""
         padding-left: 16px;
     }
 
-    /* DataFrame */
     .stDataFrame {
         border-radius: 12px;
         overflow: hidden;
         border: 1px solid rgba(139, 92, 246, 0.15);
     }
 
-    /* Sidebar */
     .stSidebar [data-testid="stSidebarContent"] {
         background: linear-gradient(180deg, #0d0d1a 0%, #1a0a2e 50%, #12121f 100%);
     }
@@ -128,7 +122,6 @@ st.markdown("""
         font-weight: 600;
     }
 
-    /* Expander */
     .streamlit-expanderHeader {
         font-family: 'Outfit', sans-serif;
         font-weight: 500;
@@ -136,7 +129,6 @@ st.markdown("""
         border-radius: 10px;
     }
 
-    /* Plotly charts container */
     .stPlotlyChart {
         border-radius: 16px;
         overflow: hidden;
@@ -144,7 +136,6 @@ st.markdown("""
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
 
-    /* Badge style */
     .badge {
         display: inline-block;
         padding: 4px 12px;
@@ -157,7 +148,6 @@ st.markdown("""
     .badge-purple { background: rgba(139,92,246,0.2); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
     .badge-cyan { background: rgba(6,182,212,0.2); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); }
 
-    /* Separator */
     .custom-separator {
         height: 1px;
         background: linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.3) 50%, transparent 100%);
@@ -165,14 +155,12 @@ st.markdown("""
         border: none;
     }
 
-    /* Hide default streamlit elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- Hero Header ---
 st.markdown("""
 <div class="hero-container">
     <div class="hero-title">☢️ Explosions Nucléaires dans le Monde</div>
@@ -225,8 +213,8 @@ df['Yield_Category'] = df['Yield_Average'].map(
     lambda x: '🟢 Faible (<20 kt)' if x < 20 else ('🟡 Moyen (20-1000 kt)' if x < 1000 else '🔴 Élevé (>1000 kt)')
 )
 
-# --- Sidebar ---
 st.sidebar.markdown("## 🎛️ Filtres")
+
 countries = sorted(df['WEAPON SOURCE COUNTRY'].unique())
 selected_country = st.sidebar.multiselect("🌍 Pays source", countries, default=countries)
 
@@ -250,7 +238,6 @@ df_filtered = df[
     (df['Yield_Category'].isin(selected_yield))
 ]
 
-# --- KPIs ---
 st.markdown('<div class="section-header">📊 Indicateurs clés</div>', unsafe_allow_html=True)
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 with kpi1:
@@ -264,7 +251,6 @@ with kpi4:
     max_yield = df_filtered['Yield_Average'].max()
     st.metric("Essai le plus puissant", f"{max_yield:,.0f} kt" if not pd.isna(max_yield) else "N/A")
 
-# --- Aperçu ---
 st.markdown('<div class="custom-separator"></div>', unsafe_allow_html=True)
 st.markdown('<div class="section-header">📋 Aperçu du jeu de données</div>', unsafe_allow_html=True)
 st.markdown(
@@ -274,7 +260,6 @@ st.markdown(
 )
 st.dataframe(df_filtered.head(50), use_container_width=True, height=300)
 
-# --- Stats ---
 st.markdown('<div class="custom-separator"></div>', unsafe_allow_html=True)
 st.markdown('<div class="section-header">📈 Statistiques par pays</div>', unsafe_allow_html=True)
 stats = (
@@ -294,24 +279,19 @@ st.dataframe(
     use_container_width=True,
 )
 
-# --- value_counts ---
 st.markdown('<div class="section-header">🔢 Répartition par pays</div>', unsafe_allow_html=True)
 vc = df_filtered['WEAPON SOURCE COUNTRY'].value_counts().reset_index()
 vc.columns = ['Pays', "Nombre d'essais"]
 st.dataframe(vc, use_container_width=True)
 
-# --- GRAPHIQUES ---
 st.markdown('<div class="custom-separator"></div>', unsafe_allow_html=True)
 st.markdown('<div class="section-header">📊 Visualisations</div>', unsafe_allow_html=True)
 
-plotly_layout = dict(
+base_layout = dict(
     template='plotly_dark',
     paper_bgcolor='rgba(0,0,0,0)',
     plot_bgcolor='rgba(13,13,26,0.5)',
     font=dict(family='Outfit, sans-serif', size=12, color='#c0c0e0'),
-    title_font=dict(family='Outfit, sans-serif', size=16, color='#e0e0ff'),
-    margin=dict(l=40, r=20, t=50, b=40),
-    height=420,
 )
 
 col1, col2 = st.columns(2)
@@ -327,9 +307,12 @@ with col1:
         fillcolor='rgba(139, 92, 246, 0.15)',
     )
     fig1.update_layout(
-        **plotly_layout,
-        title="📈 Évolution chronologique des essais",
-        xaxis_title="Année", yaxis_title="Nombre d'essais",
+        **base_layout,
+        title=dict(text="📈 Évolution chronologique des essais", font=dict(family='Outfit, sans-serif', size=16, color='#e0e0ff')),
+        xaxis_title="Année",
+        yaxis_title="Nombre d'essais",
+        height=420,
+        margin=dict(l=40, r=20, t=50, b=40),
         xaxis=dict(gridcolor='rgba(139,92,246,0.1)'),
         yaxis=dict(gridcolor='rgba(139,92,246,0.1)'),
     )
@@ -344,16 +327,18 @@ with col2:
     )
     fig2.update_traces(marker_line_width=0, opacity=0.9)
     fig2.update_layout(
-        **plotly_layout,
-        title="📊 Distribution par décennie",
-        xaxis_title="Décennie", yaxis_title="Nombre d'essais",
+        **base_layout,
+        title=dict(text="📊 Distribution par décennie", font=dict(family='Outfit, sans-serif', size=16, color='#e0e0ff')),
+        xaxis_title="Décennie",
+        yaxis_title="Nombre d'essais",
         coloraxis_showscale=False,
+        height=420,
+        margin=dict(l=40, r=20, t=50, b=40),
         xaxis=dict(gridcolor='rgba(139,92,246,0.1)'),
         yaxis=dict(gridcolor='rgba(139,92,246,0.1)'),
     )
     st.plotly_chart(fig2, use_container_width=True)
 
-# --- Camembert ---
 st.markdown('<div class="custom-separator"></div>', unsafe_allow_html=True)
 
 country_counts = df_filtered['WEAPON SOURCE COUNTRY'].value_counts().reset_index()
@@ -383,10 +368,10 @@ with col_pie:
         marker=dict(line=dict(color='#0d0d1a', width=2)),
     )
     fig3.update_layout(
-        template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(family='Outfit, sans-serif', size=12, color='#c0c0e0'),
-        height=480, margin=dict(l=20, r=20, t=50, b=20),
-        title=dict(text="🥧 Répartition des essais", font=dict(size=16, color='#e0e0ff')),
+        **base_layout,
+        height=480,
+        margin=dict(l=20, r=20, t=50, b=20),
+        title=dict(text="🥧 Répartition des essais", font=dict(family='Outfit, sans-serif', size=16, color='#e0e0ff')),
         showlegend=True,
         legend=dict(font=dict(size=11, family='Outfit, sans-serif')),
     )
@@ -406,17 +391,18 @@ with col_bar:
         marker_line_width=0,
     )
     fig4.update_layout(
-        **plotly_layout,
-        title="🏆 Classement par nombre d'essais",
-        xaxis_title="Nombre d'essais", yaxis_title="",
+        **base_layout,
+        title=dict(text="🏆 Classement par nombre d'essais", font=dict(family='Outfit, sans-serif', size=16, color='#e0e0ff')),
+        xaxis_title="Nombre d'essais",
+        yaxis_title="",
         coloraxis_showscale=False,
         height=480,
+        margin=dict(l=40, r=40, t=50, b=40),
         xaxis=dict(gridcolor='rgba(139,92,246,0.1)'),
         yaxis=dict(gridcolor='rgba(139,92,246,0.1)'),
     )
     st.plotly_chart(fig4, use_container_width=True)
 
-# --- Carte ---
 st.markdown('<div class="custom-separator"></div>', unsafe_allow_html=True)
 
 lat_col = None
@@ -468,9 +454,9 @@ if lat_col and lon_col:
     )
     st.plotly_chart(fig_map, use_container_width=True)
 
-# --- Top sites ---
+st.markdown('<div class="custom-separator"></div>', unsafe_allow_html=True)
+
 if 'Location.Name' in df_filtered.columns:
-    st.markdown('<div class="custom-separator"></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-header">📍 Top 10 des sites d\'essais</div>', unsafe_allow_html=True)
     top_sites = df_filtered['Location.Name'].value_counts().head(10).reset_index()
     top_sites.columns = ['Site', 'Essais']
@@ -487,16 +473,18 @@ if 'Location.Name' in df_filtered.columns:
         marker_line_width=0,
     )
     fig5.update_layout(
-        **plotly_layout,
+        **base_layout,
         title="",
-        xaxis_title="Nombre d'essais", yaxis_title="",
+        xaxis_title="Nombre d'essais",
+        yaxis_title="",
         coloraxis_showscale=False,
+        height=420,
+        margin=dict(l=40, r=40, t=30, b=40),
         xaxis=dict(gridcolor='rgba(139,92,246,0.1)'),
         yaxis=dict(gridcolor='rgba(139,92,246,0.1)'),
     )
     st.plotly_chart(fig5, use_container_width=True)
 
-# --- Footer ---
 st.markdown("""
 <div style="
     text-align: center;
