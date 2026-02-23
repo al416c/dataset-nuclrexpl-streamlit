@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 st.set_page_config(
-    page_title="☢️ Explosions Nucléaires",
+    page_title="☢️ Explosions nucléaires",
     page_icon="☢️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -31,7 +31,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("☢️ Exploration des Explosions Nucléaires dans le Monde")
+st.title("☢️ Exploration des explosions nucléaires dans le monde")
 
 with st.expander("ℹ️ Note : Essais nucléaires non confirmés"):
     st.markdown("""
