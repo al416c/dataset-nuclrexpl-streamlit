@@ -1,3 +1,4 @@
+import numpy as np
 import streamlit as st
 import plotly.express as px
 from config.settings import COUNTRY_COLORS
@@ -22,59 +23,92 @@ def render_map(df_filtered):
 
     separator()
     section_header("🗺️ Carte des sites d'essais nucléaires")
-    map_data = df_filtered[[lat_col, lon_col, 'WEAPON SOURCE COUNTRY', 'Date.Year', 'Yield_Average']].dropna()
-    map_data = map_data.rename(columns={lat_col: 'lat', lon_col: 'lon'})
-    map_data = map_data.sort_values('Date.Year').reset_index(drop=True)
-    map_data['Date.Year'] = map_data['Date.Year'].astype(int)
 
-    fig_map = px.scatter_mapbox(
-        map_data, lat='lat', lon='lon',
-        color='WEAPON SOURCE COUNTRY',
-        animation_frame='Date.Year',
-        hover_data={'Date.Year': True, 'Yield_Average': ':.1f', 'lat': False, 'lon': False},
-        color_discrete_map=COUNTRY_COLORS,
-        zoom=1, height=700, opacity=0.8,
+    extra_cols = [c for c in ['Data.Name', 'Data.Type', 'Data.Purpose', 'WEAPON DEPLOYMENT LOCATION'] if c in df_filtered.columns]
+    map_data = df_filtered[[lat_col, lon_col, 'WEAPON SOURCE COUNTRY', 'Date.Year', 'Yield_Average'] + extra_cols].dropna(subset=[lat_col, lon_col])
+    map_data = map_data.rename(columns={lat_col: 'lat', lon_col: 'lon'})
+    map_data['Date.Year'] = map_data['Date.Year'].astype(int)
+    map_data['Yield_Display'] = map_data['Yield_Average'].fillna(0)
+    map_data['Marker_Size'] = np.clip(np.log1p(map_data['Yield_Display']) * 2.5, 5, 30)
+
+    view = st.radio(
+        "Mode d'affichage",
+        ["☢️ Points (par pays)", "🌡️ Carte de densité"],
+        horizontal=True,
+        label_visibility='collapsed',
     )
-    fig_map.update_traces(marker=dict(size=8))
-    fig_map.update_layout(
-        mapbox_style='carto-darkmatter',
-        margin=dict(l=0, r=0, t=0, b=60),
-        font=dict(family='Outfit, sans-serif'),
-        legend=dict(
-            title="Pays",
-            font=dict(size=12, family='Outfit, sans-serif'),
-            bgcolor='rgba(13,13,26,0.8)',
-            bordercolor='rgba(139,92,246,0.3)',
-            borderwidth=1,
-            yanchor="top", y=0.99,
-            xanchor="left", x=0.01,
-        ),
-        updatemenus=[dict(
-            type="buttons", showactive=False,
-            x=0.05, y=-0.02, xanchor="left", yanchor="top",
-            buttons=[
-                dict(label="▶ Lecture", method="animate",
-                     args=[None, {"frame": {"duration": 150, "redraw": True},
-                                  "fromcurrent": True,
-                                  "transition": {"duration": 80}}]),
-                dict(label="⏸ Pause", method="animate",
-                     args=[[None], {"frame": {"duration": 0, "redraw": False},
-                                    "mode": "immediate",
-                                    "transition": {"duration": 0}}]),
+
+    _legend_style = dict(
+        title="Pays",
+        font=dict(size=12, family='Outfit, sans-serif'),
+        bgcolor='rgba(13,13,26,0.8)',
+        bordercolor='rgba(139,92,246,0.3)',
+        borderwidth=1,
+        yanchor="top", y=0.99,
+        xanchor="left", x=0.01,
+    )
+
+    if view == "☢️ Points (par pays)":
+        hover_tpl = "<b>%{customdata[0]}</b><br>"
+        hover_tpl += "Pays : %{customdata[1]}<br>"
+        hover_tpl += "Année : %{customdata[2]}<br>"
+        hover_tpl += "Puissance : %{customdata[3]:.1f} kt<br>"
+        if 'Data.Name' in map_data.columns:
+            hover_tpl += "Nom : %{customdata[4]}<br>"
+        hover_tpl += "<extra></extra>"
+
+        custom_cols = [
+            map_data.get('WEAPON DEPLOYMENT LOCATION', map_data['WEAPON SOURCE COUNTRY']),
+            map_data['WEAPON SOURCE COUNTRY'],
+            map_data['Date.Year'],
+            map_data['Yield_Display'],
+        ]
+        if 'Data.Name' in map_data.columns:
+            custom_cols.append(map_data['Data.Name'])
+
+        fig_map = px.scatter_mapbox(
+            map_data, lat='lat', lon='lon',
+            color='WEAPON SOURCE COUNTRY',
+            color_discrete_map=COUNTRY_COLORS,
+            zoom=1, height=650, opacity=0.8,
+        )
+        fig_map.update_traces(
+            marker=dict(size=map_data['Marker_Size']),
+            customdata=np.stack(custom_cols, axis=-1),
+            hovertemplate=hover_tpl,
+        )
+        fig_map.update_layout(
+            mapbox_style='carto-darkmatter',
+            margin=dict(l=0, r=0, t=0, b=0),
+            font=dict(family='Outfit, sans-serif'),
+            legend=_legend_style,
+        )
+        st.plotly_chart(fig_map, use_container_width=True)
+
+    else:
+        fig_density = px.density_mapbox(
+            map_data, lat='lat', lon='lon',
+            z='Yield_Display',
+            radius=18,
+            zoom=1, height=650,
+            color_continuous_scale=[
+                [0, 'rgba(13,13,26,0)'],
+                [0.2, 'rgba(139,92,246,0.3)'],
+                [0.5, 'rgba(167,139,250,0.6)'],
+                [0.8, 'rgba(6,182,212,0.8)'],
+                [1, 'rgba(34,211,238,1)'],
             ],
-            font=dict(color='#e2e8f0', family='Outfit, sans-serif'),
-            bgcolor='rgba(139,92,246,0.3)',
-            bordercolor='rgba(139,92,246,0.5)',
-        )],
-        sliders=[dict(
-            active=0,
-            currentvalue=dict(prefix="Année : ", font=dict(size=14, family='JetBrains Mono, monospace', color='#a78bfa')),
-            pad=dict(t=40),
-            font=dict(color='#8b8baf', family='Outfit, sans-serif'),
-            bgcolor='rgba(13,13,26,0.6)',
-            activebgcolor='#8b5cf6',
-            bordercolor='rgba(139,92,246,0.3)',
-            borderwidth=1,
-        )],
-    )
-    st.plotly_chart(fig_map, use_container_width=True)
+        )
+        fig_density.update_layout(
+            mapbox_style='carto-darkmatter',
+            margin=dict(l=0, r=0, t=0, b=0),
+            font=dict(family='Outfit, sans-serif'),
+            coloraxis_colorbar=dict(
+                title=dict(text='Puissance (kt)', font=dict(family='Outfit, sans-serif', size=12, color='#a78bfa')),
+                tickfont=dict(family='JetBrains Mono, monospace', size=10, color='#8b8baf'),
+                bgcolor='rgba(13,13,26,0.6)',
+                bordercolor='rgba(139,92,246,0.3)',
+                borderwidth=1,
+            ),
+        )
+        st.plotly_chart(fig_density, use_container_width=True)
