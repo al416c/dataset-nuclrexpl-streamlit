@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from config.settings import BASE_LAYOUT, GRADIENT_SCALE, PURPLE_SCALE, PIE_COLORS, GRID_STYLE
 from config.styles import section_header, separator
 
@@ -35,6 +36,29 @@ def render_timeline_and_decades(df_filtered):
             xaxis=GRID_STYLE,
             yaxis=GRID_STYLE,
         )
+        fig1.layout.updatemenus = [dict(
+            type="buttons",
+            showactive=False,
+            x=0.05, y=1.12,
+            buttons=[dict(
+                label="▶ Animer",
+                method="animate",
+                args=[None, dict(frame=dict(duration=50, redraw=True), fromcurrent=True)]
+            )]
+        )]
+        frames = []
+        for i in range(1, len(tests_per_year) + 1):
+            frames.append(go.Frame(
+                data=[go.Scatter(
+                    x=tests_per_year['Date.Year'].iloc[:i],
+                    y=tests_per_year['Essais'].iloc[:i],
+                    fill='tozeroy',
+                    fillcolor='rgba(139, 92, 246, 0.15)',
+                    line=dict(width=2.5, color='#a78bfa'),
+                )],
+                name=str(i),
+            ))
+        fig1.frames = frames
         st.plotly_chart(fig1, use_container_width=True)
 
     with col2:
@@ -85,6 +109,7 @@ def render_pie_and_ranking(df_filtered):
             textfont=dict(size=12, family='Outfit, sans-serif'),
             pull=[0.03] * len(main_data),
             marker=dict(line=dict(color='#0d0d1a', width=2)),
+            rotation=90,
         )
         fig3.update_layout(
             **BASE_LAYOUT,
