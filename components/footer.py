@@ -10,7 +10,6 @@ def render_footer():
     background: linear-gradient(135deg, rgba(13,13,26,0.9) 0%, rgba(26,10,46,0.9) 100%);
     border-top: 1px solid rgba(139,92,246,0.2);
     border-radius: 20px 20px 0 0;
-    animation: fadeInUp 0.8s ease-out;
 ">
     <p style="font-family: 'Outfit', sans-serif; color: #555; font-size: 0.7rem; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px;">
         PROPULSÉ PAR
