@@ -38,4 +38,4 @@ def render_value_counts(df_filtered):
     section_header("🔢 Répartition par pays")
     vc = df_filtered['WEAPON SOURCE COUNTRY'].value_counts().reset_index()
     vc.columns = ['Pays', "Nombre d'essais"]
-    st.dataframe(vc, use_container_width=True)
+    st.dataframe(vc, use_container_width=True, hide_index=True)
